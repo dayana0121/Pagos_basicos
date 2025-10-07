@@ -13,6 +13,7 @@ def pagos_webhook(request):
             payload = json.loads(request.body.decode('utf-8'))
         except Exception:
             payload = {}
+        #todo: validar firma según la pasarela
         print("Webhook recibido:", payload)
         return JsonResponse({"ok": True})
     return JsonResponse({"detail": "Método no permitido"}, status=405)

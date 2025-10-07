@@ -1,1 +1,11 @@
+# Archivos y carpetas innecesarios
+__pycache__/
+*.pyc
+*.pyo
+*.log
+db.sqlite3
+
+# Migraciones cacheadas
+core/migrations/__pycache__/
+
 .env
