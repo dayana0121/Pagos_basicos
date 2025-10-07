@@ -1,18 +1,33 @@
-# Archivos y carpetas innecesarios
-__pycache__/
-*.pyc
-*.pyo
-*.log
-db.sqlite3
+# 🧠 ARCHIVOS SENSIBLES
+.env                # Tus claves privadas y configuraciones
+*.key               # Cualquier archivo de clave o certificado
 
-# Archivos de sistema
-.DS_Store
-Thumbs.db
-
-# Entorno virtual
+# 🧰 ENTORNO VIRTUAL
+.venv/              # Carpeta del entorno virtual de Python
 venv/
+env/
 
-# Archivos de VSCode
-.vscode/
+# 💾 ARCHIVOS DE CACHE / COMPILADOS
+__pycache__/
+*.py[cod]
+*.sqlite3-journal
 
-.env
+# 🗄️ BASE DE DATOS LOCAL
+db.sqlite3          # Base de datos local (si se crea)
+
+# 🧱 NGROK (config o cache)
+ngrok.yml
+.ngrok2/
+.ngrok/
+
+# ⚙️ ARCHIVOS DEL SISTEMA
+.DS_Store           # macOS
+Thumbs.db           # Windows
+
+# 🔧 ARCHIVOS DE LOG
+*.log
+
+# 🧪 ARCHIVOS TEMPORALES DE TEST
+*.pytest_cache/
+.coverage
+htmlcov/
