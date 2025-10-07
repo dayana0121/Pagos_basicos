@@ -5,7 +5,14 @@ __pycache__/
 *.log
 db.sqlite3
 
-# Migraciones cacheadas
-core/migrations/__pycache__/
+# Archivos de sistema
+.DS_Store
+Thumbs.db
+
+# Entorno virtual
+venv/
+
+# Archivos de VSCode
+.vscode/
 
 .env
