@@ -1,5 +1,6 @@
 from django.shortcuts import render
 import os
+import uuid
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
@@ -42,10 +43,20 @@ def procesar_pago(request):
             logger.error("MP_ACCESS_TOKEN no configurado")
             return JsonResponse({"message": "Falta configurar MP_ACCESS_TOKEN en el servidor"}, status=500)
 
-        # Aquí usas tu ACCESS_TOKEN privado
+        # Aquí usas tu ACCESS_TOKEN privado y una clave de idempotencia
+        # La clave evita pagos duplicados y es requerida por MP para Yape
+        # Usamos una combinación del ID local y un UUID para garantizar unicidad
+        idempotency_key = None
+        try:
+            idempotency_key = f"yape-{uuid.uuid4().hex}"
+        except Exception:
+            idempotency_key = None
+
         headers = {
             "Authorization": f"Bearer {settings.MP_ACCESS_TOKEN}",
             "Content-Type": "application/json",
+            # MP exige este header para crear pagos Yape
+            **({"X-Idempotency-Key": idempotency_key} if idempotency_key else {}),
         }
 
         # Crea registro local con estado 'pendiente'
@@ -69,7 +80,7 @@ def procesar_pago(request):
             "payment_method_id": "yape",
         }
 
-        logger.info(f"Creando pago MP: amount={amount}, phone={phone}, otp={otp}")
+        logger.info(f"Creando pago MP: amount={amount}, phone={phone}, otp={otp}, idem_key={idempotency_key}")
         try:
             response = requests.post("https://api.mercadopago.com/v1/payments", headers=headers, json=payload)
             resp_data = response.json()
@@ -98,6 +109,7 @@ def procesar_pago(request):
                 "mp_payment_id": mp_id,
                 "mp_status": mp_status,
                 "local_status": payment.status,
+                "idempotency_key": idempotency_key,
                 "data": resp_data,
             }, status=400)
 
@@ -107,6 +119,7 @@ def procesar_pago(request):
             "mp_payment_id": mp_id,
             "mp_status": mp_status,
             "local_status": payment.status,
+            "idempotency_key": idempotency_key,
             "data": resp_data,
         })
 
