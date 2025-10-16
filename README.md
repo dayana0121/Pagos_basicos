@@ -131,3 +131,92 @@ Solución aplicada:
 3. Stripe generó una nueva clave de firma (whsec_...), la cual se copió en el archivo .env.
 4. Se reinició el servidor Django y ngrok.
 5. Después de esto, los eventos checkout.session.completed fueron recibidos y verificados correctamente, marcando la orden como “pagada” en el sistema.
+
+---
+
+Yape + Mercado Pago — Paso 3.1 (Revisión de integración y requisitos)
+
+🎯 Objetivo
+- Procesar pagos con Yape desde Django usando Mercado Pago como intermediario, contemplando credenciales, generación del pago, confirmaciones y manejo de errores.
+
+📚 Documentación de referencia
+- “Yape — Configuración de la integración” (Mercado Pago).
+- Token/flujo Yape: generación con OTP + número de celular, luego creación del pago con ese token.
+- Condiciones: modo sandbox, credenciales públicas/privadas, habilitación del método de pago en la cuenta de Mercado Pago.
+
+✅ Estado actual del repositorio
+- Frontend (`templates/yape.html`):
+  - Formulario con campos obligatorios: `phone` (celular Yape) y `otp` (código OTP).
+  - Carga del SDK JS de Mercado Pago (`https://sdk.mercadopago.com/js/v2`).
+  - Inicialización con la clave pública `{{ public_key }}`.
+  - Envío del token (actualmente simulado) al backend `POST /procesar_pago/` con protección CSRF.
+- Backend (`yape/views.py`):
+  - `yape_view`: lee `MP_PUBLIC_KEY` del `.env` y renderiza `yape.html`.
+  - `procesar_pago`: recibe `token`, usa `MP_ACCESS_TOKEN` para crear el pago vía `POST https://api.mercadopago.com/v1/payments` con `payment_method_id: "yape"`.
+- Configuración (`pagos_basico/settings.py`):
+  - Variables de entorno: `MP_PUBLIC_KEY`, `MP_ACCESS_TOKEN` ya soportadas.
+- Rutas (`yape/urls.py`):
+  - `"/"` → `yape_view` y `"/procesar_pago/"` → `procesar_pago`.
+
+⚠️ Nota sobre el token Yape
+- En el flujo actual se simula el token en `yape.html` para probar end‑to‑end.
+- Para producción, reemplazar la simulación por el flujo oficial de generación de token Yape (OTP + celular) según documentación vigente de Mercado Pago.
+
+🧩 Requisitos y condiciones para pruebas (sandbox)
+- Habilitar modo sandbox en Mercado Pago.
+- Configurar credenciales en `.env`:
+  - `MP_PUBLIC_KEY` (clave pública, usada en el frontend).
+  - `MP_ACCESS_TOKEN` (token privado, usado en el backend para crear el pago).
+- Asegurarse de que Yape esté habilitado como medio de pago en la cuenta.
+
+📋 Campos obligatorios (flujo Yape)
+- Número de teléfono del pagador (Yape).
+- Código OTP enviado por Yape.
+- Credenciales de Mercado Pago: pública (frontend) y privada (backend).
+
+🚀 Cómo probar el flujo actual
+1. Crear y completar el archivo `.env` siguiendo `Pagos_basicos/.env.example`.
+2. Iniciar el servidor de Django: `python manage.py runserver`.
+3. Abrir la página principal (renderiza `yape.html`).
+4. Ingresar teléfono y OTP (de prueba), generar token simulado y enviar.
+5. Ver la respuesta del backend y el payload a la API de Mercado Pago.
+
+🔜 Próximos pasos (sugeridos)
+- Sustituir el token simulado por el token real de Yape (según SDK/API oficial).
+- Agregar manejo robusto de errores y estados del pago.
+- Implementar webhook de confirmación de pago (si aplica al método Yape) y actualizar estados en BD.
+
+---
+
+Paso 3.2 — Registrar aplicación / credenciales en Mercado Pago
+
+🎯 Meta
+- Obtener credenciales públicas y privadas, y activar Yape en la cuenta.
+
+🛠️ Acciones en el Dashboard de Mercado Pago
+1. Ingresar al Dashboard de Desarrolladores (Mercado Pago → Developers).
+2. Crear una nueva aplicación (si no existe) y seleccionar “Pagos online”.
+3. En métodos de pago, habilitar Yape para Perú (si tu cuenta y país lo permiten).
+4. Ir a “Credenciales” y copiar las claves en modo sandbox:
+   - Public key → usar como `MP_PUBLIC_KEY` (frontend).
+   - Access token (privado) → usar como `MP_ACCESS_TOKEN` (backend).
+5. (Opcional) Configurar Webhooks: apuntar a tu endpoint, por ejemplo `https://<tu_dominio>/webhook/`.
+
+📎 Sobre verificación de Webhooks
+- A diferencia de Stripe, normalmente Mercado Pago no requiere un “webhook secret” universal para verificar firma.
+- La validación recomendada es recuperar el pago por `id` con tu `MP_ACCESS_TOKEN` usando la API.
+- Si tu cuenta ofrece configuración de firma/cabecera para webhooks, habilítala y valida según documentación; en este repo dejamos verificación por consulta a la API.
+
+🔧 Configuración en este proyecto
+- Variables en `.env` (ver `Pagos_basicos/.env.example`):
+  - `MP_PUBLIC_KEY=...`
+  - `MP_ACCESS_TOKEN=...`
+- Endpoint de Webhook (creado en `yape/urls.py`): `POST /webhook/`
+  - Recibe notificaciones y consulta el pago por `id` en la API de Mercado Pago.
+
+✅ Checklist rápido
+- Cuenta de Mercado Pago en modo sandbox.
+- App “Pagos online” creada.
+- Yape habilitado en métodos de pago.
+- `MP_PUBLIC_KEY` y `MP_ACCESS_TOKEN` configurados.
+- Webhook apuntando a tu entorno (si lo vas a usar para confirmaciones).

@@ -18,14 +18,26 @@
   <label for="otp">Código OTP:</label>
   <input type="text" id="otp" name="otp" placeholder="123456" required>
 
+  <label for="amount">Monto (S/):</label>
+  <input type="number" id="amount" name="amount" placeholder="1.00" step="0.01" min="0.10" required>
+
   <button type="submit">Generar token y pagar</button>
 </form>
 
 <p id="resultado"></p>
 
 <script>
-  // Inicializa Mercado Pago con tu clave pública
-  const mp = new MercadoPago("{{ public_key }}");
+  // Inicializa Mercado Pago con tu clave pública (opcional en simulación)
+  let mp = null;
+  try {
+    if ("{{ public_key }}" && "{{ public_key }}".trim().length > 0) {
+      mp = new MercadoPago("{{ public_key }}");
+    } else {
+      console.warn("MP_PUBLIC_KEY no configurado; flujo en modo simulación");
+    }
+  } catch (e) {
+    console.warn("No se pudo inicializar Mercado Pago SDK:", e);
+  }
 
   // Captura el formulario
   const form = document.getElementById("yape-form");
@@ -36,6 +48,7 @@
 
     const phone = document.getElementById("phone").value;
     const otp = document.getElementById("otp").value;
+    const amount = document.getElementById("amount").value;
 
     try {
       // ⚠️ Mercado Pago aún no soporta generación de tokens Yape vía SDK,
@@ -44,18 +57,22 @@
       console.log("✅ Token simulado generado:", fakeToken);
       resultado.innerText = "✅ Token generado (simulado): " + fakeToken;
 
-      // Enviar el token al backend (Django)
+      // Enviar el token y datos al backend (Django)
       const response = await fetch("/procesar_pago/", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "X-CSRFToken": getCookie('csrftoken')  // Protección CSRF
         },
-        body: JSON.stringify({ token: fakeToken })
+        body: JSON.stringify({ token: fakeToken, phone, otp, amount })
       });
 
       const data = await response.json();
-      resultado.innerText = data.message;
+      let detalle = "";
+      if (data.mp_payment_id) {
+        detalle = `\nID MP: ${data.mp_payment_id} | Estado MP: ${data.mp_status} | Estado local: ${data.local_status}`;
+      }
+      resultado.innerText = `${data.message}${detalle}`;
 
     } catch (error) {
       console.error(error);
