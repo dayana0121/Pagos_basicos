@@ -17,7 +17,6 @@ def yape_view(request):
     public_key = os.getenv('MP_PUBLIC_KEY')  # 🔹 toma del .env
     return render(request, 'yape.html', {'public_key': public_key})
 
-@csrf_exempt
 def procesar_pago(request):
     if request.method == "POST":
         try:
@@ -37,11 +36,11 @@ def procesar_pago(request):
 
         if not token:
             logger.warning("Token ausente en solicitud de pago")
-            return JsonResponse({"message": "❌ Token requerido"}, status=400)
+            return JsonResponse({"message": "Token requerido"}, status=400)
 
         if not settings.MP_ACCESS_TOKEN:
             logger.error("MP_ACCESS_TOKEN no configurado")
-            return JsonResponse({"message": "❌ Falta configurar MP_ACCESS_TOKEN en el servidor"}, status=500)
+            return JsonResponse({"message": "Falta configurar MP_ACCESS_TOKEN en el servidor"}, status=500)
 
         # Aquí usas tu ACCESS_TOKEN privado
         headers = {
@@ -60,6 +59,8 @@ def procesar_pago(request):
             otp=otp,
         )
 
+        
+
         payload = {
             "transaction_amount": float(amount),
             "token": token,
@@ -77,7 +78,7 @@ def procesar_pago(request):
             payment.status = "fallido"
             payment.mp_status = "error"
             payment.save()
-            return JsonResponse({"message": "❌ Error al crear el pago en MP", "error": str(e)}, status=502)
+            return JsonResponse({"message": "Error al crear el pago en MP", "error": str(e)}, status=502)
 
         # Sincroniza información de MP en el registro local (se mantiene 'pendiente' hasta confirmación)
         mp_id = resp_data.get("id")
@@ -92,7 +93,7 @@ def procesar_pago(request):
             payment.status = "fallido"
             payment.save()
             return JsonResponse({
-                "message": "❌ Pago rechazado o inválido",
+                "message": "Pago rechazado o inválido",
                 "payment_id": payment.id,
                 "mp_payment_id": mp_id,
                 "mp_status": mp_status,
@@ -101,7 +102,7 @@ def procesar_pago(request):
             }, status=400)
 
         return JsonResponse({
-            "message": "✅ Pago creado en Mercado Pago (pendiente de confirmación)",
+            "message": "Pago creado en Mercado Pago (pendiente de confirmación)",
             "payment_id": payment.id,
             "mp_payment_id": mp_id,
             "mp_status": mp_status,

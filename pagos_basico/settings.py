@@ -2,9 +2,8 @@ from pathlib import Path
 from decouple import config
 import os
 from dotenv import load_dotenv
-load_dotenv()  # Carga las variables del archivo .env
+load_dotenv()
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
@@ -21,6 +20,20 @@ MP_PUBLIC_KEY = os.getenv('MP_PUBLIC_KEY')
 MP_ACCESS_TOKEN = os.getenv('MP_ACCESS_TOKEN')
 
 ALLOWED_HOSTS = ['*']
+
+# CSRF Trusted Origins (permite orígenes externos como ngrok)
+def _env_list(name, defaults=None):
+    raw = os.getenv(name)
+    if not raw:
+        return defaults or []
+    return [item.strip() for item in raw.split(',') if item.strip()]
+
+CSRF_TRUSTED_ORIGINS = _env_list('CSRF_TRUSTED_ORIGINS', [
+    'http://127.0.0.1:8000',
+    'https://127.0.0.1:8000',
+    'http://localhost:8000',
+    'https://localhost:8000',
+])
 
 
 INSTALLED_APPS = [
