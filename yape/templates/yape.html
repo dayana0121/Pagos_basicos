@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Pago con Yape</title>
+</head>
+<body>
+  <h1>Generar Token de Pago con Yape</h1>
+
+  <!-- SDK de Mercado Pago -->
+  <script src="https://sdk.mercadopago.com/js/v2"></script>
+
+ <h2>Pagar con Yape</h2>
+<form id="yape-form">
+  <label for="phone">Número de celular (Yape):</label>
+  <input type="text" id="phone" name="phone" placeholder="9XXXXXXXX" required>
+
+  <label for="otp">Código OTP:</label>
+  <input type="text" id="otp" name="otp" placeholder="123456" required>
+
+  <button type="submit">Generar token y pagar</button>
+</form>
+
+<p id="resultado"></p>
+
+<script>
+  // Inicializa Mercado Pago con tu clave pública
+  const mp = new MercadoPago("{{ public_key }}");
+
+  // Captura el formulario
+  const form = document.getElementById("yape-form");
+  const resultado = document.getElementById("resultado");
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const phone = document.getElementById("phone").value;
+    const otp = document.getElementById("otp").value;
+
+    try {
+      // ⚠️ Mercado Pago aún no soporta generación de tokens Yape vía SDK,
+      // así que simulamos uno para probar el flujo:
+      const fakeToken = "tok_" + Math.random().toString(36).substring(2, 15);
+      console.log("✅ Token simulado generado:", fakeToken);
+      resultado.innerText = "✅ Token generado (simulado): " + fakeToken;
+
+      // Enviar el token al backend (Django)
+      const response = await fetch("/procesar_pago/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": getCookie('csrftoken')  // Protección CSRF
+        },
+        body: JSON.stringify({ token: fakeToken })
+      });
+
+      const data = await response.json();
+      resultado.innerText = data.message;
+
+    } catch (error) {
+      console.error(error);
+      resultado.innerText = "❌ Error al generar token o procesar pago.";
+    }
+  });
+
+  // Obtener CSRF token (Django)
+  function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== "") {
+      const cookies = document.cookie.split(";");
+      for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i].trim();
+        if (cookie.substring(0, name.length + 1) === (name + "=")) {
+          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+          break;
+        }
+      }
+    }
+    return cookieValue;
+  }
+</script>
+
+
+</body>
+</html>
