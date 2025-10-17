@@ -19,9 +19,7 @@
 
   <label for="otp">Código OTP:</label>
   <input type="text" id="otp" name="otp" placeholder="123456" required>
-
-  <label for="amount">Monto (S/):</label>
-  <input type="number" id="amount" name="amount" placeholder="1.00" step="0.01" min="0.10" required>
+  
 
   {% csrf_token %}
 
@@ -46,6 +44,7 @@
   // Captura el formulario
   const form = document.getElementById("yape-form");
   const resultado = document.getElementById("resultado");
+  const submitBtn = form.querySelector('button[type="submit"]');
 
   async function getYapeToken(mpInstance, phone, otp) {
     if (!mpInstance || typeof mpInstance.yape !== 'function') {
@@ -67,9 +66,9 @@
 
     const phone = document.getElementById("phone").value;
     const otp = document.getElementById("otp").value;
-    const amount = document.getElementById("amount").value;
 
     try {
+      submitBtn.disabled = true;
       const token = await getYapeToken(mp, phone, otp);
       console.log("✅ Token generado (id):", token);
       resultado.innerText = "Token generado (id): " + token;
@@ -81,7 +80,7 @@
           "Content-Type": "application/json",
           "X-CSRFToken": getCookie('csrftoken')  // Protección CSRF
         },
-        body: JSON.stringify({ token, phone, otp, amount })
+        body: JSON.stringify({ token, phone, otp })
       });
 
       const data = await response.json();
@@ -90,8 +89,9 @@
         detalle = `\nID MP: ${data.mp_payment_id} | Estado MP: ${data.mp_status} | Estado local: ${data.local_status}`;
       }
       if (!response.ok) {
-        const err = data?.data || data;
-        resultado.innerText = `${data.message || 'Error en pago'}\n${detalle}\n${JSON.stringify(err)}`;
+        console.error('Error en pago:', data);
+        const friendly = data?.message || 'Pago rechazado o inválido';
+        resultado.innerText = `${friendly}\n${detalle}\nIntenta nuevamente.`;
       } else {
         resultado.innerText = `${data.message}${detalle}`;
       }
@@ -99,6 +99,8 @@
     } catch (error) {
       console.error(error);
       resultado.innerText = "❌ Error al generar token o procesar pago.";
+    } finally {
+      submitBtn.disabled = false;
     }
   });
 

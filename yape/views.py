@@ -19,6 +19,9 @@ def yape_view(request):
     return render(request, 'yape.html', {'public_key': public_key})
 
 def procesar_pago(request):
+    if request.method == "OPTIONS":
+        # Permite preflight (si el navegador lo hace) para evitar 405
+        return JsonResponse({"ok": True, "allow": ["POST"]})
     if request.method == "POST":
         try:
             data = json.loads(request.body)
@@ -26,12 +29,20 @@ def procesar_pago(request):
             data = {}
 
         token = data.get("token")
-        amount_str = data.get("amount") or data.get("monto") or "1.00"
+        # Monto interno: usa .env YAPE_TRANSACTION_AMOUNT o fallback seguro (5.00)
+        amount_str = os.getenv("YAPE_TRANSACTION_AMOUNT") or data.get("amount") or data.get("monto") or "5.00"
         phone = data.get("phone")
         otp = data.get("otp")
 
         try:
             amount = Decimal(str(amount_str))
+        except Exception:
+            amount = Decimal("1.00")
+        # Asegura valor positivo y con dos decimales
+        try:
+            if amount <= 0:
+                amount = Decimal("1.00")
+            amount = amount.quantize(Decimal("0.01"))
         except Exception:
             amount = Decimal("1.00")
 
@@ -70,7 +81,14 @@ def procesar_pago(request):
             otp=otp,
         )
 
-        
+        # Email del payer se gestiona en el servidor.
+        # En sandbox, algunas cuentas requieren omitirlo para evitar 4390.
+        access_token = settings.MP_ACCESS_TOKEN or ""
+        is_sandbox = access_token.startswith('TEST-')
+        omit_payer_email_sandbox = (os.getenv('YAPE_SANDBOX_OMIT_PAYER_EMAIL', 'False') == 'True')
+        req_email = os.getenv('PAYER_EMAIL') or os.getenv('DEFAULT_PAYER_EMAIL')
+        if is_sandbox and omit_payer_email_sandbox:
+            req_email = None
 
         payload = {
             "transaction_amount": float(amount),
@@ -79,6 +97,17 @@ def procesar_pago(request):
             "installments": 1,
             "payment_method_id": "yape",
         }
+
+        # Incluye email si está disponible (sandbox/prod)
+        if req_email:
+            payload["payer"] = {"email": req_email}
+
+        # Logging útil para diagnóstico (sin token)
+        try:
+            safe_payload = {k: (v if k != 'token' else '***') for k, v in payload.items()}
+            logger.info(f"Payload MP: {safe_payload} | sandbox={is_sandbox} | payer_email={req_email or 'omitido'}")
+        except Exception:
+            pass
 
         logger.info(f"Creando pago MP: amount={amount}, phone={phone}, otp={otp}, idem_key={idempotency_key}")
         try:
@@ -111,7 +140,7 @@ def procesar_pago(request):
                 "local_status": payment.status,
                 "idempotency_key": idempotency_key,
                 "data": resp_data,
-            }, status=400)
+            }, status=400) 
 
         return JsonResponse({
             "message": "Pago creado en Mercado Pago (pendiente de confirmación)",
@@ -127,6 +156,7 @@ def procesar_pago(request):
 
 @csrf_exempt
 def mp_webhook(request):
+    print("📩 Webhook recibido:", request.method, request.body.decode("utf-8"))
     if request.method in ("POST", "GET"):
         try:
             payload = json.loads(request.body) if request.method == "POST" else {}
